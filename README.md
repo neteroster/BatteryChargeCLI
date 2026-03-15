@@ -1,6 +1,6 @@
 # btcharge
 
-A minimal command-line tool to enable or disable battery charging on Apple Silicon Macs via SMC (System Management Controller).
+A minimal command-line tool to control and inspect battery charging on Apple Silicon Macs via SMC (System Management Controller).
 
 ## Requirements
 
@@ -24,9 +24,12 @@ sudo btcharge off
 
 # Re-enable charging
 sudo btcharge on
+
+# Show current charging key states
+sudo btcharge show
 ```
 
-Root privileges are required because writing to SMC keys needs direct hardware access.
+Root privileges are required because accessing SMC keys needs direct hardware access.
 
 ## How It Works
 

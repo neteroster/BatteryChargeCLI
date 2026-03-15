@@ -20,10 +20,12 @@ enum ChargeError: Error {
 enum ChargeCommand: String {
     case on
     case off
+    case show
 }
 
 enum PowerControl {
     private struct KeyControl {
+        let name: String
         let keyInfo: SMCComm.KeyInfo
         let onBytes: [UInt8]
         let offBytes: [UInt8]
@@ -50,11 +52,13 @@ enum PowerControl {
 
     private static let chargeKeys = [
         KeyControl(
+            name: "CHTE",
             keyInfo: Keys.chte,
             onBytes: [0x00, 0x00, 0x00, 0x00],
             offBytes: [0x01, 0x00, 0x00, 0x00]
         ),
         KeyControl(
+            name: "CH0C",
             keyInfo: Keys.ch0c,
             onBytes: [0x00],
             offBytes: [0x01]
@@ -69,6 +73,10 @@ enum PowerControl {
             SMCComm.stop()
         }
 
+        if command == .show {
+            return showCurrentValues()
+        }
+
         guard let key = chargeKeys.first(where: { SMCComm.keySupported(keyInfo: $0.keyInfo) }) else {
             throw ChargeError.unsupportedMachine
         }
@@ -79,6 +87,8 @@ enum PowerControl {
             targetBytes = key.onBytes
         case .off:
             targetBytes = key.offBytes
+        case .show:
+            preconditionFailure("show is handled before mutating commands")
         }
 
         let writeResult = SMCComm.writeKey(key: key.keyInfo.key, bytes: targetBytes)
@@ -107,6 +117,36 @@ enum PowerControl {
         }
     }
 
+    private static func showCurrentValues() -> String {
+        return chargeKeys.map { key in
+            guard SMCComm.keySupported(keyInfo: key.keyInfo) else {
+                return "\(key.name): unsupported"
+            }
+
+            guard let value = SMCComm.readKey(
+                key: key.keyInfo.key,
+                dataSize: key.onBytes.count
+            ) else {
+                return "\(key.name): supported, value=<read failed>"
+            }
+
+            let state: String
+            if value == key.onBytes {
+                state = "enabled"
+            } else if value == key.offBytes {
+                state = "disabled"
+            } else {
+                state = "unknown"
+            }
+
+            return "\(key.name): supported, value=\(hexString(bytes: value)), state=\(state)"
+        }.joined(separator: "\n")
+    }
+
+    private static func hexString(bytes: [UInt8]) -> String {
+        bytes.map { String(format: "%02X", $0) }.joined(separator: " ")
+    }
+
     private static func isChargingDisabled(using key: KeyControl) -> Bool? {
         guard let value = SMCComm.readKey(
             key: key.keyInfo.key,
@@ -123,7 +163,7 @@ extension ChargeError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidArguments:
-            return "usage: btcharge <on|off>"
+            return "usage: btcharge <on|off|show>"
         case .smcUnavailable:
             return "failed to open AppleSMC"
         case .unsupportedMachine:

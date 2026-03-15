@@ -107,11 +107,12 @@ enum PowerControl {
             throw ChargeError.commandFailed
         }
 
+        let detail = "\(key.name) <- \(hexString(bytes: targetBytes))"
         switch (command, chargingDisabled) {
         case (.off, true):
-            return "charging disabled"
+            return "charging disabled (\(detail))"
         case (.on, false):
-            return "charging enabled"
+            return "charging enabled (\(detail))"
         default:
             throw ChargeError.commandFailed
         }
